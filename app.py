@@ -16,6 +16,7 @@ from utilities.calculation import running_sum
 from datetime import datetime, timedelta
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.COSMO])
+server = app.server
 
 # Import data from postgresql
 filter_date = datetime.today() - timedelta(days=21)
