@@ -99,8 +99,8 @@ def gen_fig_daily_master_clean_count():
     fig_daily_master_clean.update_xaxes(title_text="scraped date")
 
     # Set y-axes titles
-    fig_daily_master_clean.update_yaxes(secondary_y=False, showgrid=False)
-    fig_daily_master_clean.update_yaxes(secondary_y=True, showgrid=False)
+    fig_daily_master_clean.update_yaxes(secondary_y=False, showgrid=False, color=palette['green'])
+    fig_daily_master_clean.update_yaxes(secondary_y=True, showgrid=False, color=palette['red'])
 
     # plotly manual axis adjustments
     fig_daily_master_clean.update_yaxes(range=[0, 2000], secondary_y=False, showgrid=False)
@@ -142,8 +142,8 @@ def gen_fig_daily_master_clean_price():
     fig_daily_master_clean_price.update_xaxes(title_text="scraped date")
 
     # Set y-axes titles
-    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False, linecolor=palette['green'])
-    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False, linecolor=palette['red'])
+    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False, color=palette['green'])
+    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False, color=palette['red'])
 
     # plotly manual axis adjustments
     fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False)
@@ -172,8 +172,9 @@ def gen_fig_master_clean_price_3d():
                                               log_x=True,
                                               log_y=True,
                                               log_z=False,
-                                              height=800)
-                                              #range_z=(0, 25000))
+                                              height=800,
+                                              color_continuous_scale='rdylgn')
+    # range_z=(0, 25000))
 
     fig_master_clean_price_3d.update_layout(template='plotly_dark',
                                             plot_bgcolor='rgba(0, 0, 0, 0)',
@@ -205,11 +206,10 @@ app.layout = html.Div([
             ])
         ]),
         html.Br(),
-        dbc.Card([
-            dbc.CardBody([
-                html.H3("💵 Market Price overview (€)", className="card-title"),
-                dbc.Row([
-                    dbc.Col([
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
                         html.Div("Select brand"),
                         dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='brand-dropdown'),
                         html.Br(),
@@ -232,13 +232,24 @@ app.layout = html.Div([
                                         id='circulation_year-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True})
-                    ], width=2),
-                    dbc.Col([
-                        dbc.Row([
-                            dcc.Graph(id='fig_daily_master_clean_price',
-                                      figure=gen_fig_daily_master_clean_price())
-                        ]),
-                        dbc.Row([
+                    ])
+                ])
+            ], width=2),
+            html.Br(),
+            dbc.Col([
+                dbc.Row([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H3("💵 Market price overview (€)", className="card-title"),
+                            dcc.Graph(id='fig_daily_master_clean_price', figure=gen_fig_daily_master_clean_price())
+                        ])
+                    ])
+                ]),
+                html.Br(),
+                dbc.Row([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H3("Bike price history (€)", className="card-title"),
                             dcc.Graph(id='fig_master_clean_price_3d',
                                       figure=gen_fig_master_clean_price_3d())
                         ])
@@ -246,7 +257,8 @@ app.layout = html.Div([
                 ])
             ])
         ])
-    ], fluid=True)
+    ],
+        fluid=True)
 ])
 
 if __name__ == "__main__":
