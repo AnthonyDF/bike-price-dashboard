@@ -9,6 +9,7 @@ import dash_bootstrap_components as dbc
 
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
+import plotly.express as px
 
 import pandas as pd
 
@@ -141,8 +142,8 @@ def gen_fig_daily_master_clean_price():
     fig_daily_master_clean_price.update_xaxes(title_text="scraped date")
 
     # Set y-axes titles
-    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False)
-    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False)
+    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False, linecolor=palette['green'])
+    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False, linecolor=palette['red'])
 
     # plotly manual axis adjustments
     fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False)
@@ -159,6 +160,26 @@ def gen_fig_daily_master_clean_price():
                                                ))
 
     return fig_daily_master_clean_price
+
+
+def gen_fig_master_clean_price_3d():
+    fig_master_clean_price_3d = px.scatter_3d(df_clean_pro.head(2000),
+                                              x='mileage',
+                                              y='bike_age',
+                                              z='price',
+                                              color='engine_size',
+                                              hover_name='model',
+                                              log_x=True,
+                                              log_y=True,
+                                              log_z=False,
+                                              height=800)
+                                              #range_z=(0, 25000))
+
+    fig_master_clean_price_3d.update_layout(template='plotly_dark',
+                                            plot_bgcolor='rgba(0, 0, 0, 0)',
+                                            paper_bgcolor='rgba(0, 0, 0, 0)')
+
+    return fig_master_clean_price_3d
 
 
 ##########
@@ -187,8 +208,42 @@ app.layout = html.Div([
         dbc.Card([
             dbc.CardBody([
                 html.H3("💵 Market Price overview (€)", className="card-title"),
-                dcc.Graph(id='fig_daily_master_clean_price',
-                          figure=gen_fig_daily_master_clean_price())
+                dbc.Row([
+                    dbc.Col([
+                        html.Div("Select brand"),
+                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='brand-dropdown'),
+                        html.Br(),
+                        html.Div("Select category"),
+                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='category-dropdown'),
+                        html.Br(),
+                        html.Div("Select model"),
+                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='model-dropdown'),
+                        html.Br(),
+                        html.Div("Select engine size range"),
+                        dcc.RangeSlider(0, 2000, 100,
+                                        value=[0, 2000],
+                                        id='engine_size-slider',
+                                        marks=None,
+                                        tooltip={"placement": "bottom", "always_visible": True}),
+                        html.Br(),
+                        html.Div("Select bike year range"),
+                        dcc.RangeSlider(1950, 2022, 1,
+                                        value=[1950, 2022],
+                                        id='circulation_year-slider',
+                                        marks=None,
+                                        tooltip={"placement": "bottom", "always_visible": True})
+                    ], width=2),
+                    dbc.Col([
+                        dbc.Row([
+                            dcc.Graph(id='fig_daily_master_clean_price',
+                                      figure=gen_fig_daily_master_clean_price())
+                        ]),
+                        dbc.Row([
+                            dcc.Graph(id='fig_master_clean_price_3d',
+                                      figure=gen_fig_master_clean_price_3d())
+                        ])
+                    ])
+                ])
             ])
         ])
     ], fluid=True)
