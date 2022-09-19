@@ -46,6 +46,11 @@ df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
 palette = {'red': '#EE553B',
            'green': '#00CC96'}
 
+dropdown_brand = df_clean_pro['brand'].sort_values(ascending=True).unique()
+dropdown_category = df_clean_pro['category'].sort_values(ascending=True).unique()
+dropdown_model = df_clean_pro['model'].value_counts()
+dropdown_model = dropdown_model[dropdown_model > 5].index
+
 
 def gen_fig_daily_spiders():
     fig_daily_spiders = make_subplots(rows=len(df_raw.source.unique()), cols=1,
@@ -210,25 +215,28 @@ app.layout = html.Div([
             dbc.Col([
                 dbc.Card([
                     dbc.CardBody([
-                        html.Div("Select brand"),
-                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='brand-dropdown'),
+                        dcc.Dropdown(dropdown_brand, id='brand-dropdown', placeholder='Select brand'),
                         html.Br(),
-                        html.Div("Select category"),
-                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='category-dropdown'),
+                        dcc.Dropdown(dropdown_category, id='category-dropdown', placeholder='Select category'),
                         html.Br(),
-                        html.Div("Select model"),
-                        dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='model-dropdown'),
+                        dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True, placeholder='Select model(s)'),
                         html.Br(),
                         html.Div("Select engine size range"),
-                        dcc.RangeSlider(0, 2000, 100,
-                                        value=[0, 2000],
+                        dcc.RangeSlider(df_clean_pro['engine_size'].min(),
+                                        df_clean_pro['engine_size'].max(),
+                                        100,
+                                        value=[df_clean_pro['engine_size'].min(),
+                                               df_clean_pro['engine_size'].max()],
                                         id='engine_size-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True}),
                         html.Br(),
                         html.Div("Select bike year range"),
-                        dcc.RangeSlider(1950, 2022, 1,
-                                        value=[1950, 2022],
+                        dcc.RangeSlider(df_clean_pro['circulation_year'].min(),
+                                        df_clean_pro['circulation_year'].max(),
+                                        1,
+                                        value=[df_clean_pro['circulation_year'].min(),
+                                               df_clean_pro['circulation_year'].max()],
                                         id='circulation_year-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True})
@@ -256,10 +264,66 @@ app.layout = html.Div([
                     ])
                 ])
             ])
-        ])
+        ]),
+        html.Div(id='dd-output-container')
     ],
         fluid=True)
 ])
+
+
+#############
+# Callbacks #
+#############
+
+@app.callback(
+    Output('category-dropdown', 'options'),
+    Input('brand-dropdown', 'value'))
+def update_dd_category(brand_value):
+    if brand_value is None:
+        return df_clean_pro['category'].unique()
+    else:
+        return df_clean_pro[df_clean_pro['brand'] == brand_value]['category'].unique()
+
+@app.callback(
+    Output('model-dropdown', 'options'),
+    Input('category-dropdown', 'value'),
+    Input('brand-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value')
+)
+def update_dd_model(category_value, brand_value, engine_size_values, circulation_year_values):
+    if (brand_value is None) and (category_value is None):
+        return df_clean_pro[
+            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
+            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
+            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
+            (df_clean_pro['circulation_year'] <= max(circulation_year_values))]['model'].unique()
+
+    if (brand_value is None) and (category_value is not None):
+        return df_clean_pro[
+            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
+            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
+            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
+            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
+            (df_clean_pro['category'] == category_value)]['model'].unique()
+
+    if (brand_value is not None) and (category_value is None):
+        return df_clean_pro[
+            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
+            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
+            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
+            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
+            (df_clean_pro['brand'] == brand_value)]['model'].unique()
+
+    if (brand_value is not None) and (category_value is not None):
+        return df_clean_pro[
+            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
+            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
+            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
+            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
+            (df_clean_pro['category'] == category_value) &
+                            (df_clean_pro['brand'] == brand_value)]['model'].unique()
+
 
 if __name__ == "__main__":
     app.run_server(debug=True, host="0.0.0.0", port=8080, use_reloader=True)
