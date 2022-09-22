@@ -36,9 +36,6 @@ df_clean_pro = get_table("master_clean_pro")
 
 df_clean_pro_daily_count = df_clean_pro[['scraped_date', 'url']].groupby(by=['scraped_date'], axis=0,
                                                                          as_index=False).count()
-df_clean_pro_daily_price = df_clean_pro[['scraped_date', 'price']].groupby(by=['scraped_date'], axis=0,
-                                                                           as_index=False).mean()
-df_clean_pro_daily_price['SMA30'] = df_clean_pro_daily_price['price'].rolling(30).mean()
 
 df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
     lambda x: running_sum(df_clean_pro_daily_count, x.scraped_date), axis=1)
@@ -76,7 +73,7 @@ def gen_fig_daily_spiders():
                                     plot_bgcolor='rgba(0, 0, 0, 0)',
                                     paper_bgcolor='rgba(0, 0, 0, 0)')
     fig_daily_spiders.update_yaxes(showgrid=False)
-    fig_daily_spiders.update_xaxes(showgrid=False)
+    fig_daily_spiders.update_xaxes(showgrid=False, range=[df_raw.scraped_date.min(), df_raw.scraped_date.max()])
 
     return fig_daily_spiders
 
@@ -124,70 +121,6 @@ def gen_fig_daily_master_clean_count():
     return fig_daily_master_clean
 
 
-def gen_fig_daily_master_clean_price():
-    fig_daily_master_clean_price = make_subplots(specs=[[{"secondary_y": True}]])
-
-    fig_daily_master_clean_price.add_trace(
-        go.Bar(x=df_clean_pro_daily_price['scraped_date'],
-               y=df_clean_pro_daily_price['price'],
-               name="Daily average price",
-               marker=dict(color=palette['green'])),
-        secondary_y=False
-    )
-
-    fig_daily_master_clean_price.add_trace(
-        go.Scatter(x=df_clean_pro_daily_price['scraped_date'],
-                   y=df_clean_pro_daily_price['SMA30'],
-                   name="Price moving average (30 days)",
-                   mode="lines",
-                   marker=dict(color=palette['red'])),
-        secondary_y=True
-    )
-
-    fig_daily_master_clean_price.update_xaxes(title_text="scraped date")
-
-    # Set y-axes titles
-    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False, color=palette['green'])
-    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False, color=palette['red'])
-
-    # plotly manual axis adjustments
-    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False)
-    fig_daily_master_clean_price.update_xaxes(range=[datetime(2021, 11, 1), datetime.today()], showgrid=False)
-    fig_daily_master_clean_price.update_layout(template='plotly_dark',
-                                               plot_bgcolor='rgba(0, 0, 0, 0)',
-                                               paper_bgcolor='rgba(0, 0, 0, 0)',
-                                               legend=dict(
-                                                   yanchor="top",
-                                                   y=0.99,
-                                                   xanchor="left",
-                                                   x=0.1,
-                                                   bgcolor='rgba(0, 0, 0, 0)'
-                                               ))
-
-    return fig_daily_master_clean_price
-
-
-def gen_fig_master_clean_price_3d():
-    fig_master_clean_price_3d = px.scatter_3d(df_clean_pro.head(2000),
-                                              x='mileage',
-                                              y='bike_age',
-                                              z='price',
-                                              color='engine_size',
-                                              hover_name='model',
-                                              log_x=True,
-                                              log_y=True,
-                                              log_z=False,
-                                              height=800,
-                                              color_continuous_scale='rdylgn')
-    # range_z=(0, 25000))
-
-    fig_master_clean_price_3d.update_layout(template='plotly_dark',
-                                            plot_bgcolor='rgba(0, 0, 0, 0)',
-                                            paper_bgcolor='rgba(0, 0, 0, 0)')
-
-    return fig_master_clean_price_3d
-
-
 ##########
 # Layout #
 ##########
@@ -219,12 +152,10 @@ app.layout = html.Div([
                         html.Br(),
                         dcc.Dropdown(dropdown_category, id='category-dropdown', placeholder='Select category'),
                         html.Br(),
-                        dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True, placeholder='Select model(s)'),
-                        html.Br(),
                         html.Div("Select engine size range"),
                         dcc.RangeSlider(df_clean_pro['engine_size'].min(),
                                         df_clean_pro['engine_size'].max(),
-                                        100,
+                                        10,
                                         value=[df_clean_pro['engine_size'].min(),
                                                df_clean_pro['engine_size'].max()],
                                         id='engine_size-slider',
@@ -239,7 +170,20 @@ app.layout = html.Div([
                                                df_clean_pro['circulation_year'].max()],
                                         id='circulation_year-slider',
                                         marks=None,
-                                        tooltip={"placement": "bottom", "always_visible": True})
+                                        tooltip={"placement": "bottom", "always_visible": True}),
+                        html.Br(),
+                        dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True,
+                                     placeholder='Select model(s)'),
+                        html.Br(),
+                        dcc.RangeSlider(df_clean_pro['price'].min(),
+                                        df_clean_pro['price'].max(),
+                                        1,
+                                        value=[df_clean_pro['price'].min(),
+                                               df_clean_pro['price'].max()],
+                                        id='price-slider',
+                                        marks=None,
+                                        tooltip={"placement": "bottom", "always_visible": True}),
+                        html.Br(),
                     ])
                 ])
             ], width=2),
@@ -249,7 +193,7 @@ app.layout = html.Div([
                     dbc.Card([
                         dbc.CardBody([
                             html.H3("💵 Market price overview (€)", className="card-title"),
-                            dcc.Graph(id='fig_daily_master_clean_price', figure=gen_fig_daily_master_clean_price())
+                            dcc.Graph(id='fig_daily_master_clean_price')
                         ])
                     ])
                 ]),
@@ -258,8 +202,7 @@ app.layout = html.Div([
                     dbc.Card([
                         dbc.CardBody([
                             html.H3("Bike price history (€)", className="card-title"),
-                            dcc.Graph(id='fig_master_clean_price_3d',
-                                      figure=gen_fig_master_clean_price_3d())
+                            dcc.Graph(id='fig_master_clean_price_3d')
                         ])
                     ])
                 ])
@@ -274,6 +217,31 @@ app.layout = html.Div([
 #############
 # Callbacks #
 #############
+def boolean_mask(brand=None, category=None, model=None, engine_size=None, circulation_year=None, price=None):
+    bool_lists = ((df_clean_pro['engine_size'] >= min(engine_size)) &
+                  (df_clean_pro['engine_size'] <= max(engine_size)) &
+                  (df_clean_pro['circulation_year'] >= min(circulation_year)) &
+                  (df_clean_pro['circulation_year'] <= max(circulation_year)) &
+                  (df_clean_pro['price'] >= min(price)) &
+                  (df_clean_pro['price'] <= max(price)))
+
+    if brand is not None:
+        bool_brand = df_clean_pro['brand'] == brand
+    else:
+        bool_brand = ~df_clean_pro['brand'].isnull()
+
+    if category is not None:
+        bool_category = df_clean_pro['category'] == category
+    else:
+        bool_category = ~df_clean_pro['category'].isnull()
+
+    if model is not None:
+        bool_model = df_clean_pro['model'].isin(model)
+    else:
+        bool_model = ~df_clean_pro['model'].isnull()
+
+    return bool_lists & bool_brand & bool_category & bool_model
+
 
 @app.callback(
     Output('category-dropdown', 'options'),
@@ -283,6 +251,7 @@ def update_dd_category(brand_value):
         return df_clean_pro['category'].unique()
     else:
         return df_clean_pro[df_clean_pro['brand'] == brand_value]['category'].unique()
+
 
 @app.callback(
     Output('model-dropdown', 'options'),
@@ -322,7 +291,99 @@ def update_dd_model(category_value, brand_value, engine_size_values, circulation
             (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
             (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
             (df_clean_pro['category'] == category_value) &
-                            (df_clean_pro['brand'] == brand_value)]['model'].unique()
+            (df_clean_pro['brand'] == brand_value)]['model'].unique()
+
+
+@app.callback(
+    Output('fig_daily_master_clean_price', 'figure'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circulation_year, price):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    df_clean_pro_daily_price = df_filtered[['scraped_date', 'price']].groupby(by=['scraped_date'], axis=0,
+                                                                              as_index=False).mean()
+    # mooving average
+    df_clean_pro_daily_price['SMA30'] = df_clean_pro_daily_price['price'].rolling(30).mean()
+
+    fig_daily_master_clean_price = make_subplots(specs=[[{"secondary_y": True}]])
+    fig_daily_master_clean_price.add_trace(
+        go.Bar(x=df_clean_pro_daily_price['scraped_date'],
+               y=df_clean_pro_daily_price['price'],
+               name="Daily average price",
+               marker=dict(color=palette['green'])),
+        secondary_y=False
+    )
+
+    fig_daily_master_clean_price.add_trace(
+        go.Scatter(x=df_clean_pro_daily_price['scraped_date'],
+                   y=df_clean_pro_daily_price['SMA30'],
+                   name="Price moving average (30 days)",
+                   mode="lines",
+                   marker=dict(color=palette['red'])),
+        secondary_y=True
+    )
+
+    fig_daily_master_clean_price.update_xaxes(title_text="scraped date")
+
+    # Set y-axes titles
+    fig_daily_master_clean_price.update_yaxes(secondary_y=False, showgrid=False, color=palette['green'])
+    fig_daily_master_clean_price.update_yaxes(secondary_y=True, showgrid=False, color=palette['red'])
+
+    # plotly manual axis adjustments
+    fig_daily_master_clean_price.update_xaxes(range=[datetime(2021, 11, 1), datetime.today()], showgrid=False)
+    fig_daily_master_clean_price.update_layout(template='plotly_dark',
+                                               plot_bgcolor='rgba(0, 0, 0, 0)',
+                                               paper_bgcolor='rgba(0, 0, 0, 0)',
+                                               legend=dict(
+                                                   yanchor="top",
+                                                   y=0.99,
+                                                   xanchor="left",
+                                                   x=0.1,
+                                                   bgcolor='rgba(0, 0, 0, 0)'
+                                               ))
+
+    return fig_daily_master_clean_price
+
+
+@app.callback(
+    Output('fig_master_clean_price_3d', 'figure'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_scatter_3d(brand, category, model, engine_size, circulation_year, price):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    if brand is None:
+        color_col = 'brand'
+    elif brand is not None:
+        if category is None:
+            color_col = 'category'
+        elif category is not None:
+            color_col = 'engine_size'
+
+    fig_master_clean_price_3d = px.scatter_3d(df_filtered,
+                                              x='mileage',
+                                              y='bike_age',
+                                              z='price',
+                                              hover_name='model',
+                                              color=color_col,
+                                              log_x=True,
+                                              log_y=False,
+                                              log_z=False,
+                                              height=800,
+                                              color_continuous_scale='rdylgn')
+
+    fig_master_clean_price_3d.update_layout(template='plotly_dark',
+                                            plot_bgcolor='rgba(0, 0, 0, 0)',
+                                            paper_bgcolor='rgba(0, 0, 0, 0)')
+    fig_master_clean_price_3d.update_traces(marker_size=2)
+    return fig_master_clean_price_3d
 
 
 if __name__ == "__main__":
