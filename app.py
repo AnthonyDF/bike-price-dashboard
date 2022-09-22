@@ -156,8 +156,7 @@ app.layout = html.Div([
                         dcc.RangeSlider(df_clean_pro['engine_size'].min(),
                                         df_clean_pro['engine_size'].max(),
                                         10,
-                                        value=[df_clean_pro['engine_size'].min(),
-                                               df_clean_pro['engine_size'].max()],
+                                        value=[0, 1800],
                                         id='engine_size-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True}),
@@ -166,8 +165,7 @@ app.layout = html.Div([
                         dcc.RangeSlider(df_clean_pro['circulation_year'].min(),
                                         df_clean_pro['circulation_year'].max(),
                                         1,
-                                        value=[df_clean_pro['circulation_year'].min(),
-                                               df_clean_pro['circulation_year'].max()],
+                                        value=[2000, 2022],
                                         id='circulation_year-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True}),
@@ -178,8 +176,7 @@ app.layout = html.Div([
                         dcc.RangeSlider(df_clean_pro['price'].min(),
                                         df_clean_pro['price'].max(),
                                         1,
-                                        value=[df_clean_pro['price'].min(),
-                                               df_clean_pro['price'].max()],
+                                        value=[500, 30000],
                                         id='price-slider',
                                         marks=None,
                                         tooltip={"placement": "bottom", "always_visible": True}),
@@ -208,7 +205,6 @@ app.layout = html.Div([
                 ])
             ])
         ]),
-        html.Div(id='dd-output-container')
     ],
         fluid=True)
 ])
@@ -245,54 +241,53 @@ def boolean_mask(brand=None, category=None, model=None, engine_size=None, circul
 
 @app.callback(
     Output('category-dropdown', 'options'),
-    Input('brand-dropdown', 'value'))
-def update_dd_category(brand_value):
-    if brand_value is None:
-        return df_clean_pro['category'].unique()
-    else:
-        return df_clean_pro[df_clean_pro['brand'] == brand_value]['category'].unique()
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_dd_category(brand, category, model, engine_size, circulation_year, price):
+    return df_clean_pro[boolean_mask(brand=brand,
+                                     category=None,
+                                     model=model,
+                                     engine_size=engine_size,
+                                     circulation_year=circulation_year,
+                                     price=price)]['category'].unique()
 
 
 @app.callback(
     Output('model-dropdown', 'options'),
-    Input('category-dropdown', 'value'),
     Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
-    Input('circulation_year-slider', 'value')
-)
-def update_dd_model(category_value, brand_value, engine_size_values, circulation_year_values):
-    if (brand_value is None) and (category_value is None):
-        return df_clean_pro[
-            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
-            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
-            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
-            (df_clean_pro['circulation_year'] <= max(circulation_year_values))]['model'].unique()
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_dd_model(brand, category, model, engine_size, circulation_year, price):
+    return df_clean_pro[boolean_mask(brand=brand,
+                                     category=category,
+                                     model=None,
+                                     engine_size=engine_size,
+                                     circulation_year=circulation_year,
+                                     price=price)]['model'].unique()
 
-    if (brand_value is None) and (category_value is not None):
-        return df_clean_pro[
-            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
-            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
-            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
-            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
-            (df_clean_pro['category'] == category_value)]['model'].unique()
 
-    if (brand_value is not None) and (category_value is None):
-        return df_clean_pro[
-            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
-            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
-            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
-            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
-            (df_clean_pro['brand'] == brand_value)]['model'].unique()
-
-    if (brand_value is not None) and (category_value is not None):
-        return df_clean_pro[
-            (df_clean_pro['engine_size'] >= min(engine_size_values)) &
-            (df_clean_pro['engine_size'] <= max(engine_size_values)) &
-            (df_clean_pro['circulation_year'] >= min(circulation_year_values)) &
-            (df_clean_pro['circulation_year'] <= max(circulation_year_values)) &
-            (df_clean_pro['category'] == category_value) &
-            (df_clean_pro['brand'] == brand_value)]['model'].unique()
-
+@app.callback(
+    Output('brand-dropdown', 'options'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_dd_brand(brand, category, model, engine_size, circulation_year, price):
+    return df_clean_pro[boolean_mask(brand=None,
+                                     category=category,
+                                     model=model,
+                                     engine_size=engine_size,
+                                     circulation_year=circulation_year,
+                                     price=price)]['brand'].unique()
 
 @app.callback(
     Output('fig_daily_master_clean_price', 'figure'),
