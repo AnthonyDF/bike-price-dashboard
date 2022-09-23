@@ -226,10 +226,18 @@ card_market_price = \
         ])
     ])
 
+card_corr_matrix = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("🧮 Correlation Matrix", className="card-title"),
+            dcc.Graph(id='fig_corr_matrix', figure=gen_correlation_matrix())
+        ])
+    ])
+
 card_3D_plot = \
     dbc.Card([
         dbc.CardBody([
-            html.H3("Bike price history (€)", className="card-title"),
+            html.H3("💵 Bike price history (€)", className="card-title"),
             dcc.Graph(id='fig_master_clean_price_3d')
         ])
     ])
@@ -255,7 +263,10 @@ app.layout = html.Div([
         html.Br(),
         card_3D_plot,
         html.Br(),
-        card_distplot
+        dbc.Row([
+            dbc.Col([card_distplot,]),
+            dbc.Col([card_corr_matrix,])
+        ]),
     ], fluid=True)
 ])
 
