@@ -10,8 +10,10 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import plotly.express as px
+import plotly.figure_factory as ff
 
 import pandas as pd
+import numpy as np
 
 from utilities.data import get_table
 from utilities.calculation import running_sum
@@ -121,92 +123,140 @@ def gen_fig_daily_master_clean_count():
     return fig_daily_master_clean
 
 
+def gen_correlation_matrix():
+    df_corr = df_clean_pro.drop(columns=['circulation_year']).corr()  # Generate correlation matrix
+    mask = np.triu(np.ones_like(df_corr, dtype=bool))
+    df_corr = df_corr[mask]
+
+    fig_corr = ff.create_annotated_heatmap(
+        np.array(df_corr),
+        x=list(df_corr.columns),
+        y=list(df_corr.index),
+        annotation_text=np.around(np.array(df_corr), decimals=2),
+        colorscale='Viridis'
+    )
+
+    fig_corr.update_layout(template='plotly_dark',
+                           plot_bgcolor='rgba(0, 0, 0, 0)',
+                           paper_bgcolor='rgba(0, 0, 0, 0)', )
+
+    return fig_corr
+
+
 ##########
 # Layout #
 ##########
 
+card_scraping = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("📈️ Scraping spiders surveillance", className="card-title"),
+            dcc.Graph(id='fig_daily_spiders', figure=gen_fig_daily_spiders())
+        ])
+    ])
+
+card_daily_avg = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("💽 Database surveillance", className="card-title"),
+            html.H4("Database size after advanced cleaning", className="card-title"),
+            dcc.Graph(id='fig_daily_master_clean',
+                      figure=gen_fig_daily_master_clean_count())
+        ])
+    ])
+
+card_dropdown = \
+    dbc.Card([
+        dbc.CardBody([
+            dbc.Row([
+                dbc.Col([
+                    html.H3("🔍 Select Filters", className="card-title"),
+                    html.Br(),
+                    dcc.Dropdown(dropdown_brand, id='brand-dropdown', placeholder='Select brand'),
+                    html.Br(),
+                    dcc.Dropdown(dropdown_category, id='category-dropdown', placeholder='Select category'),
+                    html.Br()
+                ]),
+                dbc.Col([
+                    html.Br(),
+                    html.Div("Select engine size range"),
+                    dcc.RangeSlider(df_clean_pro['engine_size'].min(),
+                                    df_clean_pro['engine_size'].max(),
+                                    10,
+                                    value=[0, 1800],
+                                    id='engine_size-slider',
+                                    marks=None,
+                                    tooltip={"placement": "bottom", "always_visible": True}),
+                    html.Br(),
+                    html.Div("Select bike year range"),
+                    dcc.RangeSlider(df_clean_pro['circulation_year'].min(),
+                                    df_clean_pro['circulation_year'].max(),
+                                    1,
+                                    value=[2000, 2022],
+                                    id='circulation_year-slider',
+                                    marks=None,
+                                    tooltip={"placement": "bottom", "always_visible": True}),
+                    html.Br()
+                ]),
+                dbc.Col([
+                    html.Br(),
+                    html.Br(),
+                    dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True,
+                                 placeholder='Select model(s)'),
+                    html.Br(),
+                    html.Div("Select bike price (€) range"),
+                    dcc.RangeSlider(df_clean_pro['price'].min(),
+                                    df_clean_pro['price'].max(),
+                                    1,
+                                    value=[500, 30000],
+                                    id='price-slider',
+                                    marks=None,
+                                    tooltip={"placement": "bottom", "always_visible": True}),
+                    html.Br()
+                ])
+            ])
+        ])
+    ])
+
+card_market_price = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("💵 Market price overview (€)", className="card-title"),
+            dcc.Graph(id='fig_daily_master_clean_price')
+        ])
+    ])
+
+card_3D_plot = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("Bike price history (€)", className="card-title"),
+            dcc.Graph(id='fig_master_clean_price_3d')
+        ])
+    ])
+
+card_distplot = \
+    dbc.Card([
+        dbc.CardBody([
+            html.H3("📊 Distribution", className="card-title"),
+            dcc.Graph(id='fig_distplot')
+        ])
+    ])
+
 app.layout = html.Div([
     html.H1('🏍️ Bike price project dashboard'),
     dbc.Container([
-        dbc.Card([
-            dbc.CardBody([
-                html.H3("📈️ Scraping spiders surveillance", className="card-title"),
-                dcc.Graph(id='fig_daily_spiders', figure=gen_fig_daily_spiders())
-            ])
-        ]),
+        card_scraping,
         html.Br(),
-        dbc.Card([
-            dbc.CardBody([
-                html.H3("💽 Database surveillance", className="card-title"),
-                html.H4("Database size after advanced cleaning", className="card-title"),
-                dcc.Graph(id='fig_daily_master_clean',
-                          figure=gen_fig_daily_master_clean_count())
-            ])
-        ]),
+        card_daily_avg,
         html.Br(),
-        dbc.Row([
-            dbc.Col([
-                dbc.Card([
-                    dbc.CardBody([
-                        dcc.Dropdown(dropdown_brand, id='brand-dropdown', placeholder='Select brand'),
-                        html.Br(),
-                        dcc.Dropdown(dropdown_category, id='category-dropdown', placeholder='Select category'),
-                        html.Br(),
-                        html.Div("Select engine size range"),
-                        dcc.RangeSlider(df_clean_pro['engine_size'].min(),
-                                        df_clean_pro['engine_size'].max(),
-                                        10,
-                                        value=[0, 1800],
-                                        id='engine_size-slider',
-                                        marks=None,
-                                        tooltip={"placement": "bottom", "always_visible": True}),
-                        html.Br(),
-                        html.Div("Select bike year range"),
-                        dcc.RangeSlider(df_clean_pro['circulation_year'].min(),
-                                        df_clean_pro['circulation_year'].max(),
-                                        1,
-                                        value=[2000, 2022],
-                                        id='circulation_year-slider',
-                                        marks=None,
-                                        tooltip={"placement": "bottom", "always_visible": True}),
-                        html.Br(),
-                        dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True,
-                                     placeholder='Select model(s)'),
-                        html.Br(),
-                        dcc.RangeSlider(df_clean_pro['price'].min(),
-                                        df_clean_pro['price'].max(),
-                                        1,
-                                        value=[500, 30000],
-                                        id='price-slider',
-                                        marks=None,
-                                        tooltip={"placement": "bottom", "always_visible": True}),
-                        html.Br(),
-                    ])
-                ])
-            ], width=2),
-            html.Br(),
-            dbc.Col([
-                dbc.Row([
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H3("💵 Market price overview (€)", className="card-title"),
-                            dcc.Graph(id='fig_daily_master_clean_price')
-                        ])
-                    ])
-                ]),
-                html.Br(),
-                dbc.Row([
-                    dbc.Card([
-                        dbc.CardBody([
-                            html.H3("Bike price history (€)", className="card-title"),
-                            dcc.Graph(id='fig_master_clean_price_3d')
-                        ])
-                    ])
-                ])
-            ])
-        ]),
-    ],
-        fluid=True)
+        card_dropdown,
+        html.Br(),
+        card_market_price,
+        html.Br(),
+        card_3D_plot,
+        html.Br(),
+        card_distplot
+    ], fluid=True)
 ])
 
 
@@ -289,6 +339,7 @@ def update_dd_brand(brand, category, model, engine_size, circulation_year, price
                                      circulation_year=circulation_year,
                                      price=price)]['brand'].unique()
 
+
 @app.callback(
     Output('fig_daily_master_clean_price', 'figure'),
     Input('brand-dropdown', 'value'),
@@ -343,6 +394,30 @@ def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circul
 
     return fig_daily_master_clean_price
 
+@app.callback(
+    Output('fig_distplot', 'figure'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_distrib_plot(brand, category, model, engine_size, circulation_year, price):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    fig_distplot = make_subplots(rows=2, cols=2, subplot_titles=tuple(['price','bike_age', 'mileage', 'engine_size']))
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['price'], histfunc="count", nbinsx=50), row=1, col=1)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['bike_age'], histfunc="count", nbinsx=50), row=1, col=2)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['mileage'], histfunc="count", nbinsx=50), row=2, col=1)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['engine_size'], histfunc="count", nbinsx=50), row=2, col=2)
+    fig_distplot.update_layout(showlegend=False,
+                               template='plotly_dark',
+                               plot_bgcolor='rgba(0, 0, 0, 0)',
+                               paper_bgcolor='rgba(0, 0, 0, 0)',)
+                               #height=350)
+
+    fig_distplot.update_yaxes(showgrid=False)
+
+    return fig_distplot
 
 @app.callback(
     Output('fig_master_clean_price_3d', 'figure'),
