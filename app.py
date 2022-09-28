@@ -245,10 +245,17 @@ card_distsubplot = \
         ])
     ])
 
-card_distplot = \
+card_distplot_brand = \
     dbc.Card([
         dbc.CardBody([
-            dcc.Graph(id='fig_distplot')
+            dcc.Graph(id='fig_distplot_brand')
+        ])
+    ])
+
+card_distplot_category = \
+    dbc.Card([
+        dbc.CardBody([
+            dcc.Graph(id='fig_distplot_category')
         ])
     ])
 
@@ -268,8 +275,10 @@ app.layout = html.Div([
         dbc.Row([
             dbc.Col([card_distsubplot,
                      html.Br(),
-                     card_distplot]),
-            dbc.Col([card_corr_matrix, ])
+                     card_distplot_brand]),
+            dbc.Col([card_corr_matrix,
+                     html.Br(),
+                     card_distplot_category])
         ]),
     ], fluid=True)
 ])
@@ -436,17 +445,16 @@ def update_distrib_subplot(brand, category, model, engine_size, circulation_year
     return fig_distplot\
 
 @app.callback(
-    Output('fig_distplot', 'figure'),
+    Output('fig_distplot_brand', 'figure'),
     Input('brand-dropdown', 'value'),
     Input('category-dropdown', 'value'),
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
     Input('price-slider', 'value'))
-def update_distrib_plot(brand, category, model, engine_size, circulation_year, price):
+def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price):
     df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
-    fig_distplot = make_subplots(rows=2, cols=1, subplot_titles=tuple(['brand', 'category']))
-    fig_distplot.add_trace(go.Histogram(x=df_filtered['category'], histfunc="count", nbinsx=50), row=2, col=1)
+    fig_distplot = make_subplots(rows=1, cols=1, subplot_titles=tuple(['brand']))
     fig_distplot.add_trace(go.Histogram(x=df_filtered['brand'], histfunc="count", nbinsx=50), row=1, col=1)
     fig_distplot.update_layout(showlegend=False,
                                template='plotly_dark',
@@ -458,6 +466,28 @@ def update_distrib_plot(brand, category, model, engine_size, circulation_year, p
 
     return fig_distplot
 
+
+@app.callback(
+    Output('fig_distplot_category', 'figure'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    fig_distplot = make_subplots(rows=1, cols=1, subplot_titles=tuple(['category']))
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['category'], histfunc="count", nbinsx=50), row=1, col=1)
+    fig_distplot.update_layout(showlegend=False,
+                               template='plotly_dark',
+                               plot_bgcolor='rgba(0, 0, 0, 0)',
+                               paper_bgcolor='rgba(0, 0, 0, 0)', )
+    # height=350)
+
+    fig_distplot.update_yaxes(showgrid=False)
+
+    return fig_distplot
 
 @app.callback(
     Output('fig_master_clean_price_3d', 'figure'),
