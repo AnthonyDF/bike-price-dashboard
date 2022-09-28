@@ -27,18 +27,13 @@ server = app.server
 filter_date = datetime.today() - timedelta(days=40)
 # raw data
 df_raw = get_table("master")
-df_raw = df_raw[df_raw.source.isin(
-    ['lepoledeloccasion', '4en1', 'fulloccaz', 'seb-moto', 'motoservices', 'motovente', 'montoconcess', 'moto-station',
-     'autoscoot24', 'leparking'])]
 df_raw = df_raw[df_raw['scraped_date'] >= filter_date.date()]
 df_raw_daily_count = df_raw[['scraped_date', 'source', 'url']].groupby(by=['scraped_date', 'source'], axis=0,
                                                                        as_index=False).count()
 # clean data
 df_clean_pro = get_table("master_clean_pro")
-
 df_clean_pro_daily_count = df_clean_pro[['scraped_date', 'url']].groupby(by=['scraped_date'], axis=0,
                                                                          as_index=False).count()
-
 df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
     lambda x: running_sum(df_clean_pro_daily_count, x.scraped_date), axis=1)
 
@@ -242,10 +237,17 @@ card_3D_plot = \
         ])
     ])
 
-card_distplot = \
+card_distsubplot = \
     dbc.Card([
         dbc.CardBody([
             html.H3("📊 Distribution", className="card-title"),
+            dcc.Graph(id='fig_distsubplot')
+        ])
+    ])
+
+card_distplot = \
+    dbc.Card([
+        dbc.CardBody([
             dcc.Graph(id='fig_distplot')
         ])
     ])
@@ -264,8 +266,10 @@ app.layout = html.Div([
         card_3D_plot,
         html.Br(),
         dbc.Row([
-            dbc.Col([card_distplot,]),
-            dbc.Col([card_corr_matrix,])
+            dbc.Col([card_distsubplot,
+                     html.Br(),
+                     card_distplot]),
+            dbc.Col([card_corr_matrix, ])
         ]),
     ], fluid=True)
 ])
@@ -405,6 +409,32 @@ def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circul
 
     return fig_daily_master_clean_price
 
+
+@app.callback(
+    Output('fig_distsubplot', 'figure'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'))
+def update_distrib_subplot(brand, category, model, engine_size, circulation_year, price):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    fig_distplot = make_subplots(rows=2, cols=2, subplot_titles=tuple(['price', 'bike_age', 'mileage', 'engine_size']))
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['price'], histfunc="count", nbinsx=50), row=1, col=1)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['bike_age'], histfunc="count", nbinsx=50), row=1, col=2)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['mileage'], histfunc="count", nbinsx=50), row=2, col=1)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['engine_size'], histfunc="count", nbinsx=50), row=2, col=2)
+    fig_distplot.update_layout(showlegend=False,
+                               template='plotly_dark',
+                               plot_bgcolor='rgba(0, 0, 0, 0)',
+                               paper_bgcolor='rgba(0, 0, 0, 0)', )
+    # height=350)
+
+    fig_distplot.update_yaxes(showgrid=False)
+
+    return fig_distplot\
+
 @app.callback(
     Output('fig_distplot', 'figure'),
     Input('brand-dropdown', 'value'),
@@ -415,20 +445,19 @@ def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circul
     Input('price-slider', 'value'))
 def update_distrib_plot(brand, category, model, engine_size, circulation_year, price):
     df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
-    fig_distplot = make_subplots(rows=2, cols=2, subplot_titles=tuple(['price','bike_age', 'mileage', 'engine_size']))
-    fig_distplot.add_trace(go.Histogram(x=df_filtered['price'], histfunc="count", nbinsx=50), row=1, col=1)
-    fig_distplot.add_trace(go.Histogram(x=df_filtered['bike_age'], histfunc="count", nbinsx=50), row=1, col=2)
-    fig_distplot.add_trace(go.Histogram(x=df_filtered['mileage'], histfunc="count", nbinsx=50), row=2, col=1)
-    fig_distplot.add_trace(go.Histogram(x=df_filtered['engine_size'], histfunc="count", nbinsx=50), row=2, col=2)
+    fig_distplot = make_subplots(rows=2, cols=1, subplot_titles=tuple(['brand', 'category']))
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['category'], histfunc="count", nbinsx=50), row=2, col=1)
+    fig_distplot.add_trace(go.Histogram(x=df_filtered['brand'], histfunc="count", nbinsx=50), row=1, col=1)
     fig_distplot.update_layout(showlegend=False,
                                template='plotly_dark',
                                plot_bgcolor='rgba(0, 0, 0, 0)',
-                               paper_bgcolor='rgba(0, 0, 0, 0)',)
-                               #height=350)
+                               paper_bgcolor='rgba(0, 0, 0, 0)', )
+    # height=350)
 
     fig_distplot.update_yaxes(showgrid=False)
 
     return fig_distplot
+
 
 @app.callback(
     Output('fig_master_clean_price_3d', 'figure'),
