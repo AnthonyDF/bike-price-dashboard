@@ -1,7 +1,6 @@
 import dash
 # https://dash.plotly.com/dash-core-components
-from dash import dcc
-from dash import html
+from dash import dcc, dash_table, html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 
@@ -36,6 +35,8 @@ df_clean_pro_daily_count = df_clean_pro[['scraped_date', 'url']].groupby(by=['sc
                                                                          as_index=False).count()
 df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
     lambda x: running_sum(df_clean_pro_daily_count, x.scraped_date), axis=1)
+
+df_clean_pro_daily_count['url'] = '[View ad](' + str(df_clean_pro_daily_count['url']) + ')'
 
 palette = {'red': '#EE553B',
            'green': '#00CC96'}
@@ -259,6 +260,49 @@ card_distplot_category = \
         ])
     ])
 
+card_datatable = \
+    dbc.Card([
+        dbc.CardBody([
+            dash_table.DataTable(id='datatable',
+                                 data=[],
+                                 sort_action='native',
+                                 page_current=0,
+                                 page_size=20,
+                                 # page_action='custom',
+                                 filter_action='custom',
+                                 filter_query='',
+                                 editable=False,
+                                 row_deletable=False,
+                                 hidden_columns=['id',
+                                                 'comment',
+                                                 'circulation_date',
+                                                 'warranty_bool',
+                                                 'warranty_date',
+                                                 'vendor_type',
+                                                 'source',
+                                                 'first_hand',
+                                                 'scraped_date',
+                                                 'condition',
+                                                 'options',
+                                                 'annonce_date',
+                                                 'engine_type',
+                                                 'bike_age',
+                                                 'url'
+                                                 ],
+                                 style_header={
+                                     'backgroundColor': 'rgb(30, 30, 30)',
+                                     'color': 'white'
+                                 },
+                                 style_data={
+                                     'backgroundColor': 'rgb(50, 50, 50)',
+                                     'color': 'white',
+                                     'whiteSpace': 'normal',
+                                     'height': 'auto',
+                                 }
+                                 )
+        ])
+    ])
+
 app.layout = html.Div([
     html.H1('🏍️ Bike price project dashboard'),
     dbc.Container([
@@ -280,6 +324,8 @@ app.layout = html.Div([
                      html.Br(),
                      card_distplot_category])
         ]),
+        html.Br(),
+        card_datatable,
     ], fluid=True)
 ])
 
@@ -441,8 +487,8 @@ def update_distrib_subplot(brand, category, model, engine_size, circulation_year
     # height=350)
 
     fig_distplot.update_yaxes(showgrid=False)
+    return fig_distplot
 
-    return fig_distplot\
 
 @app.callback(
     Output('fig_distplot_brand', 'figure'),
@@ -489,6 +535,7 @@ def update_distrib_plot_brand(brand, category, model, engine_size, circulation_y
 
     return fig_distplot
 
+
 @app.callback(
     Output('fig_master_clean_price_3d', 'figure'),
     Input('brand-dropdown', 'value'),
@@ -526,5 +573,24 @@ def update_scatter_3d(brand, category, model, engine_size, circulation_year, pri
     return fig_master_clean_price_3d
 
 
+@app.callback(
+    Output('datatable', 'data'),
+    Output('datatable', 'columns'),
+    Input('brand-dropdown', 'value'),
+    Input('category-dropdown', 'value'),
+    Input('model-dropdown', 'value'),
+    Input('engine_size-slider', 'value'),
+    Input('circulation_year-slider', 'value'),
+    Input('price-slider', 'value'),
+    Input('datatable', "page_current"),
+    Input('datatable', "page_size"))
+def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price, page_current, page_size):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    columns = [{'id': x, 'name': x, 'presentation': 'markdown'} if x == 'url' else {'id': x, 'name': x} for x in
+               df_filtered.columns]
+    # return df_filtered.iloc[page_current * page_size:(page_current + 1) * page_size].to_dict('records'), [
+    return df_filtered.to_dict('records'), columns
+
+
 if __name__ == "__main__":
-    app.run_server(debug=True, host="0.0.0.0", port=8080, use_reloader=True)
+    app.run_server(debug=False, host="0.0.0.0", port=8080, use_reloader=True)
