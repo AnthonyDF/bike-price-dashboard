@@ -35,9 +35,15 @@ df_clean_pro_daily_count = df_clean_pro[['scraped_date', 'url']].groupby(by=['sc
                                                                          as_index=False).count()
 df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
     lambda x: running_sum(df_clean_pro_daily_count, x.scraped_date), axis=1)
+df_clean_pro_daily_count.sort_values('scraped_date', ascending=False, inplace=True)
 
-df_clean_pro_daily_count['url'] = '[View ad](' + str(df_clean_pro_daily_count['url']) + ')'
 
+def create_markdown_url(url):
+    markdown = f"[View]({str(url)})"
+    return markdown
+
+
+df_clean_pro['url'] = df_clean_pro['url'].apply(lambda x: create_markdown_url(x))
 palette = {'red': '#EE553B',
            'green': '#00CC96'}
 
@@ -281,13 +287,11 @@ card_datatable = \
                                                  'vendor_type',
                                                  'source',
                                                  'first_hand',
-                                                 'scraped_date',
                                                  'condition',
                                                  'options',
                                                  'annonce_date',
                                                  'engine_type',
                                                  'bike_age',
-                                                 'url'
                                                  ],
                                  style_header={
                                      'backgroundColor': 'rgb(30, 30, 30)',
@@ -298,7 +302,10 @@ card_datatable = \
                                      'color': 'white',
                                      'whiteSpace': 'normal',
                                      'height': 'auto',
-                                 }
+                                 },
+                                 style_cell={'fontSize': 12,
+                                             # 'font-family': 'sans-serif'
+                                             }
                                  )
         ])
     ])
