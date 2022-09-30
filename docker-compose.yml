@@ -6,6 +6,14 @@ services:
     build: .
     restart: always
     ports:
-      - "8080:80"
+      - "8080:8080"
 #    expose:
 #      - "8080"
+  nginx:
+    container_name: nginx
+    restart: always
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - bike-price-dashboard

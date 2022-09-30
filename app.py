@@ -3,6 +3,7 @@ import dash
 from dash import dcc, dash_table, html
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
+from flask_caching import Cache
 
 # https://dashcheatsheet.pythonanywhere.com/
 
@@ -21,6 +22,11 @@ from datetime import datetime, timedelta
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SLATE])
 server = app.server
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'filesystem',
+    'CACHE_DIR': 'cache-directory'
+})
+TIMEOUT = 60
 
 # Import data from postgresql
 filter_date = datetime.today() - timedelta(days=40)
