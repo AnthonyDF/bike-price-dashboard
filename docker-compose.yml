@@ -10,9 +10,8 @@ services:
 #    expose:
 #      - "8080"
   nginx:
-    container_name: nginx
+    image: nginx:alpine
     restart: always
-    build: ./nginx
     ports:
       - "80:80"
     depends_on:
