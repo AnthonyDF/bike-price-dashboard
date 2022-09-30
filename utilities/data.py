@@ -22,14 +22,19 @@ def load_credentials():
             'database': database}
 
 
-def get_table(table, verbose=True):
+def get_table(table, max_scraped_date=None, verbose=True):
     if verbose:
         print(f'Importing {table} data from postgres db')
 
     env = load_credentials()
-    engine = create_engine(f"postgresql://{env['username']}:{env['password']}@{env['hostname']}:{env['port']}/{env['database']}")
-    #sql_query = f"SELECT * FROM {table} ORDER BY scraped_date DESC LIMIT 1000"
-    sql_query = f"SELECT * FROM {table}"
+    engine = create_engine(
+        f"postgresql://{env['username']}:{env['password']}@{env['hostname']}:{env['port']}/{env['database']}")
+    # sql_query = f"SELECT * FROM {table} ORDER BY scraped_date DESC LIMIT 1000"
+    if max_scraped_date is not None:
+        max_scraped_date = f"'{max_scraped_date}'"
+        sql_query = f"SELECT * FROM {table} WHERE scraped_date > {max_scraped_date}"
+    else:
+        sql_query = f"SELECT * FROM {table}"
     df = psql.read_sql(sql_query, engine)
     engine.dispose()
 

@@ -1,6 +1,7 @@
 import dash
 # https://dash.plotly.com/dash-core-components
 from dash import dcc, dash_table, html
+from dash.dash_table import FormatTemplate
 from dash.dependencies import Input, Output
 import dash_bootstrap_components as dbc
 from flask_caching import Cache
@@ -28,20 +29,21 @@ cache = Cache(app.server, config={
 })
 TIMEOUT = 60
 
+percentage = FormatTemplate.percentage(0)
+
 # Import data from postgresql
 filter_date = datetime.today() - timedelta(days=40)
 # raw data
-df_raw = get_table("master")
-df_raw = df_raw[df_raw['scraped_date'] >= filter_date.date()]
+df_raw = get_table("master", max_scraped_date=filter_date.date())
 df_raw_daily_count = df_raw[['scraped_date', 'source', 'url']].groupby(by=['scraped_date', 'source'], axis=0,
                                                                        as_index=False).count()
 # clean data
 df_clean_pro = get_table("master_clean_pro")
+df_clean_pro.sort_values('scraped_date', ascending=False, inplace=True)
 df_clean_pro_daily_count = df_clean_pro[['scraped_date', 'url']].groupby(by=['scraped_date'], axis=0,
                                                                          as_index=False).count()
 df_clean_pro_daily_count['cumul_count'] = df_clean_pro_daily_count.apply(
     lambda x: running_sum(df_clean_pro_daily_count, x.scraped_date), axis=1)
-df_clean_pro_daily_count.sort_values('scraped_date', ascending=False, inplace=True)
 
 
 def create_markdown_url(url):
@@ -272,10 +274,10 @@ card_distplot_category = \
         ])
     ])
 
-card_datatable = \
+card_datatable_ads = \
     dbc.Card([
         dbc.CardBody([
-            dash_table.DataTable(id='datatable',
+            dash_table.DataTable(id='datatable_ads',
                                  data=[],
                                  sort_action='native',
                                  page_current=0,
@@ -325,6 +327,8 @@ app.layout = html.Div([
         html.Br(),
         card_dropdown,
         html.Br(),
+        card_datatable_ads,
+        html.Br(),
         card_market_price,
         html.Br(),
         card_3D_plot,
@@ -337,8 +341,6 @@ app.layout = html.Div([
                      html.Br(),
                      card_distplot_category])
         ]),
-        html.Br(),
-        card_datatable,
     ], fluid=True)
 ])
 
@@ -587,17 +589,17 @@ def update_scatter_3d(brand, category, model, engine_size, circulation_year, pri
 
 
 @app.callback(
-    Output('datatable', 'data'),
-    Output('datatable', 'columns'),
+    Output('datatable_ads', 'data'),
+    Output('datatable_ads', 'columns'),
     Input('brand-dropdown', 'value'),
     Input('category-dropdown', 'value'),
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
     Input('price-slider', 'value'),
-    Input('datatable', "page_current"),
-    Input('datatable', "page_size"))
-def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price, page_current, page_size):
+    Input('datatable_ads', "page_current"),
+    Input('datatable_ads', "page_size"))
+def update_datatable_ads(brand, category, model, engine_size, circulation_year, price, page_current, page_size):
     df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
     columns = [{'id': x, 'name': x, 'presentation': 'markdown'} if x == 'url' else {'id': x, 'name': x} for x in
                df_filtered.columns]
