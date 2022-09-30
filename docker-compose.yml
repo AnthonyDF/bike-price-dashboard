@@ -9,10 +9,10 @@ services:
       - "8080:8080"
 #    expose:
 #      - "8080"
-  nginx:
-    image: nginx:alpine
-    restart: always
-    ports:
-      - "80:80"
-    depends_on:
-      - bike-price-dashboard
+#  nginx:
+#    image: nginx:alpine
+#    restart: always
+#    ports:
+#      - "80:80"
+#    depends_on:
+#      - bike-price-dashboard
