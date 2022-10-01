@@ -59,6 +59,8 @@ dropdown_brand = df_clean_pro['brand'].sort_values(ascending=True).unique()
 dropdown_category = df_clean_pro['category'].sort_values(ascending=True).unique()
 dropdown_model = df_clean_pro['model'].value_counts()
 dropdown_model = dropdown_model[dropdown_model > 5].index
+dropdown_localisation = df_clean_pro['code_name'].sort_values(ascending=True).unique()
+
 
 
 def gen_fig_daily_spiders():
@@ -185,7 +187,9 @@ card_dropdown = \
                     dcc.Dropdown(dropdown_brand, id='brand-dropdown', placeholder='Select brand'),
                     html.Br(),
                     dcc.Dropdown(dropdown_category, id='category-dropdown', placeholder='Select category'),
-                    html.Br()
+                    html.Br(),
+                    dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True, placeholder='Select model(s)'),
+                    html.Br(),
                 ]),
                 dbc.Col([
                     html.Br(),
@@ -206,13 +210,6 @@ card_dropdown = \
                                     id='circulation_year-slider',
                                     marks=None,
                                     tooltip={"placement": "bottom", "always_visible": True}),
-                    html.Br()
-                ]),
-                dbc.Col([
-                    html.Br(),
-                    html.Br(),
-                    dcc.Dropdown(dropdown_model, id='model-dropdown', multi=True,
-                                 placeholder='Select model(s)'),
                     html.Br(),
                     html.Div("Select bike price (€) range"),
                     dcc.RangeSlider(df_clean_pro['price'].min(),
@@ -222,7 +219,11 @@ card_dropdown = \
                                     id='price-slider',
                                     marks=None,
                                     tooltip={"placement": "bottom", "always_visible": True}),
-                    html.Br()
+                ]),
+                dbc.Col([
+                    html.Br(),
+                    dcc.Dropdown(dropdown_localisation, id='localisation-dropdown', placeholder='Select localisation'),
+                    html.Br(),
                 ])
             ])
         ])
@@ -300,6 +301,8 @@ card_datatable_ads = \
                                                  'annonce_date',
                                                  'engine_type',
                                                  'bike_age',
+                                                 'dept_code',
+                                                 'localisation'
                                                  ],
                                  style_header={
                                      'backgroundColor': 'rgb(30, 30, 30)',
@@ -348,7 +351,8 @@ app.layout = html.Div([
 #############
 # Callbacks #
 #############
-def boolean_mask(brand=None, category=None, model=None, engine_size=None, circulation_year=None, price=None):
+def boolean_mask(brand=None, category=None, model=None, engine_size=None,
+                 circulation_year=None, price=None, localisation=None):
     bool_lists = ((df_clean_pro['engine_size'] >= min(engine_size)) &
                   (df_clean_pro['engine_size'] <= max(engine_size)) &
                   (df_clean_pro['circulation_year'] >= min(circulation_year)) &
@@ -371,7 +375,12 @@ def boolean_mask(brand=None, category=None, model=None, engine_size=None, circul
     else:
         bool_model = ~df_clean_pro['model'].isnull()
 
-    return bool_lists & bool_brand & bool_category & bool_model
+    if localisation is not None:
+        bool_loc = df_clean_pro['code_name'] == localisation
+    else:
+        bool_loc = ~df_clean_pro['code_name'].isnull()
+
+    return bool_lists & bool_brand & bool_category & bool_model & bool_loc
 
 
 @app.callback(
@@ -381,14 +390,16 @@ def boolean_mask(brand=None, category=None, model=None, engine_size=None, circul
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_dd_category(brand, category, model, engine_size, circulation_year, price):
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_dd_category(brand, category, model, engine_size, circulation_year, price, localisation):
     return df_clean_pro[boolean_mask(brand=brand,
                                      category=None,
                                      model=model,
                                      engine_size=engine_size,
                                      circulation_year=circulation_year,
-                                     price=price)]['category'].unique()
+                                     price=price,
+                                     localisation=localisation)]['category'].unique()
 
 
 @app.callback(
@@ -398,14 +409,16 @@ def update_dd_category(brand, category, model, engine_size, circulation_year, pr
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_dd_model(brand, category, model, engine_size, circulation_year, price):
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_dd_model(brand, category, model, engine_size, circulation_year, price, localisation):
     return df_clean_pro[boolean_mask(brand=brand,
                                      category=category,
                                      model=None,
                                      engine_size=engine_size,
                                      circulation_year=circulation_year,
-                                     price=price)]['model'].unique()
+                                     price=price,
+                                     localisation=localisation)]['model'].unique()
 
 
 @app.callback(
@@ -415,14 +428,16 @@ def update_dd_model(brand, category, model, engine_size, circulation_year, price
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_dd_brand(brand, category, model, engine_size, circulation_year, price):
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_dd_brand(brand, category, model, engine_size, circulation_year, price, localisation):
     return df_clean_pro[boolean_mask(brand=None,
                                      category=category,
                                      model=model,
                                      engine_size=engine_size,
                                      circulation_year=circulation_year,
-                                     price=price)]['brand'].unique()
+                                     price=price,
+                                     localisation=localisation)]['brand'].unique()
 
 
 @app.callback(
@@ -432,9 +447,10 @@ def update_dd_brand(brand, category, model, engine_size, circulation_year, price
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circulation_year, price):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circulation_year, price, localisation):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     df_clean_pro_daily_price = df_filtered[['scraped_date', 'price']].groupby(by=['scraped_date'], axis=0,
                                                                               as_index=False).mean()
     # mooving average
@@ -487,9 +503,10 @@ def gen_fig_daily_master_clean_price(brand, category, model, engine_size, circul
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_distrib_subplot(brand, category, model, engine_size, circulation_year, price):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_distrib_subplot(brand, category, model, engine_size, circulation_year, price, localisation):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     fig_distplot = make_subplots(rows=2, cols=2, subplot_titles=tuple(['price', 'bike_age', 'mileage', 'engine_size']))
     fig_distplot.add_trace(go.Histogram(x=df_filtered['price'], histfunc="count", nbinsx=50), row=1, col=1)
     fig_distplot.add_trace(go.Histogram(x=df_filtered['bike_age'], histfunc="count", nbinsx=50), row=1, col=2)
@@ -512,9 +529,10 @@ def update_distrib_subplot(brand, category, model, engine_size, circulation_year
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price, localisation):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     fig_distplot = make_subplots(rows=1, cols=1, subplot_titles=tuple(['brand']))
     fig_distplot.add_trace(go.Histogram(x=df_filtered['brand'], histfunc="count", nbinsx=50), row=1, col=1)
     fig_distplot.update_layout(showlegend=False,
@@ -535,9 +553,10 @@ def update_distrib_plot_brand(brand, category, model, engine_size, circulation_y
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_distrib_plot_brand(brand, category, model, engine_size, circulation_year, price, localisation):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     fig_distplot = make_subplots(rows=1, cols=1, subplot_titles=tuple(['category']))
     fig_distplot.add_trace(go.Histogram(x=df_filtered['category'], histfunc="count", nbinsx=50), row=1, col=1)
     fig_distplot.update_layout(showlegend=False,
@@ -558,9 +577,10 @@ def update_distrib_plot_brand(brand, category, model, engine_size, circulation_y
     Input('model-dropdown', 'value'),
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
-    Input('price-slider', 'value'))
-def update_scatter_3d(brand, category, model, engine_size, circulation_year, price):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+    Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'))
+def update_scatter_3d(brand, category, model, engine_size, circulation_year, price, localisation):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     if brand is None:
         color_col = 'brand'
     elif brand is not None:
@@ -597,10 +617,11 @@ def update_scatter_3d(brand, category, model, engine_size, circulation_year, pri
     Input('engine_size-slider', 'value'),
     Input('circulation_year-slider', 'value'),
     Input('price-slider', 'value'),
+    Input('localisation-dropdown', 'value'),
     Input('datatable_ads', "page_current"),
     Input('datatable_ads', "page_size"))
-def update_datatable_ads(brand, category, model, engine_size, circulation_year, price, page_current, page_size):
-    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price)]
+def update_datatable_ads(brand, category, model, engine_size, circulation_year, price, localisation, page_current, page_size):
+    df_filtered = df_clean_pro[boolean_mask(brand, category, model, engine_size, circulation_year, price, localisation)]
     columns = [{'id': x, 'name': x, 'presentation': 'markdown'} if x == 'url' else {'id': x, 'name': x} for x in
                df_filtered.columns]
     # return df_filtered.iloc[page_current * page_size:(page_current + 1) * page_size].to_dict('records'), [
